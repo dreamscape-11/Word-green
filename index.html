@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#e8f3e8">
+<meta name="description" content="나만의 영단어장을 만들고 퀴즈로 외우는 오프라인 단어장">
+<link rel="manifest" href="manifest.json">
+<title>Word Garden · 영단어 정원</title>
+<style>
+:root{--bg:#f5f8f2;--card:#fff;--ink:#294536;--muted:#718477;--green:#6d9b78;--green2:#e5f0e5;--line:#e0e9df;--danger:#b45d5d;--shadow:0 8px 24px #315b3c12}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif}
+button,input,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:13px;padding:11px 14px;background:var(--green2);color:var(--ink);font-weight:650}
+button.primary{background:var(--green);color:white}button.ghost{background:transparent;border:1px solid var(--line)}button.danger{background:#faeeee;color:var(--danger)}button:disabled{opacity:.45;cursor:not-allowed}
+header{padding:22px 18px 16px;background:linear-gradient(135deg,#e8f3e8,#f4f7ed);border-bottom:1px solid var(--line)}
+.wrap{max-width:760px;margin:auto;padding:0 14px}h1{font-size:24px;margin:0;color:#315a3d}header p{margin:6px 0 0;color:var(--muted);font-size:13px}
+nav{display:flex;gap:7px;overflow:auto;padding:12px 0 4px}nav button{white-space:nowrap;font-size:13px;padding:9px 12px}nav button.active{background:var(--green);color:#fff}
+main{padding:14px 0 40px}.panel{display:none}.panel.active{display:block}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:0 0 13px;box-shadow:var(--shadow)}
+h2{font-size:18px;margin:0 0 12px}h3{font-size:15px;margin:0 0 8px}.muted{color:var(--muted);font-size:13px}.row{display:flex;gap:8px;align-items:center}.between{justify-content:space-between}.wraprow{flex-wrap:wrap}
+input,textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fcfdfb;color:var(--ink);outline:none}input:focus,textarea:focus{border-color:var(--green)}textarea{min-height:125px;resize:vertical;line-height:1.55}
+.field{margin:10px 0}.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+.list{display:grid;gap:8px}.item{border:1px solid var(--line);border-radius:13px;padding:11px 12px;display:flex;justify-content:space-between;gap:8px;align-items:center}.item small{color:var(--muted);display:block;margin-top:3px}
+.pill{font-size:11px;background:var(--green2);padding:4px 8px;border-radius:20px;color:#42634b}
+.empty{text-align:center;padding:28px 12px;color:var(--muted);font-size:14px}
+.stat{display:flex;gap:8px}.stat>div{flex:1;background:#f5f8f2;border-radius:12px;padding:12px}.stat b{display:block;font-size:20px}
+.quizword{font-size:28px;font-weight:750;text-align:center;padding:25px 8px 18px;overflow-wrap:anywhere}
+.answer{font-size:18px;text-align:center}.timer{font-variant-numeric:tabular-nums;font-weight:750;font-size:24px}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#294536;color:white;padding:11px 16px;border-radius:30px;font-size:13px;display:none;z-index:5;max-width:90vw}
+footer{text-align:center;color:var(--muted);font-size:11px;padding:10px}
+@media(min-width:600px){header{padding-top:28px}.card{padding:20px}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><div class="row between"><div><h1>🌱 Word Garden</h1><p>나만의 영단어 정원</p></div><span class="pill" id="offlineBadge">저장 준비 중</span></div></div></header>
+<div class="wrap">
+<nav>
+<button class="active" data-tab="words">내 단어장</button><button data-tab="records">기록</button><button data-tab="merge">합치기</button><button data-tab="quiz">퀴즈</button><button data-tab="settings">백업·설정</button>
+</nav>
+<main>
+<section class="panel active" id="words">
+<div class="card">
+<h2>새 단어장 만들기</h2>
+<div class="field"><label>단어장 이름</label><input id="deckName" placeholder="예: 11월 영어 단어"></div>
+<div class="field"><label>영어 - 한국어 (한 줄에 하나씩)</label><textarea id="wordInput" placeholder="apple - 사과&#10;book - 책&#10;school - 학교"></textarea></div>
+<p class="muted">하이픈(-), 등호(=), 탭으로 구분할 수 있어. 기존 단어장을 수정할 때도 새 기록으로 저장돼.</p>
+<div class="row wraprow"><button class="primary" id="saveDeck">단어장 저장</button><button class="ghost" id="clearInput">입력 지우기</button></div>
+</div>
+<div class="card"><div class="row between"><h2>현재 단어장</h2><span class="pill" id="deckCount">0개</span></div><div id="deckList" class="list"></div></div>
+</section>
+<section class="panel" id="records">
+<div class="card"><h2>단어장 기록</h2><p class="muted">저장할 때마다 별도의 기록으로 남아. 예전 기록은 자동으로 덮어쓰지 않아.</p><div id="recordList" class="list"></div></div>
+</section>
+<section class="panel" id="merge">
+<div class="card"><h2>단어장 합치기</h2><p class="muted">합칠 단어장을 2개 이상 선택해 줘. 원본 단어장은 그대로 보존돼. 같은 영어 단어는 한 번만 포함돼.</p><div id="mergeList" class="list"></div><div class="field"><label>합친 단어장 이름</label><input id="mergeName" placeholder="예: 11월 통합 단어장"></div><button class="primary" id="mergeBtn">선택한 단어장 합치기</button></div>
+</section>
+<section class="panel" id="quiz">
+<div class="card" id="quizSetup"><h2>퀴즈 시작</h2><div class="field"><label>퀴즈에 사용할 단어장</label><select id="quizDeck" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:white;color:var(--ink)"></select></div><div class="row between"><span class="muted">제한 시간</span><div class="row"><button id="minusTime">−10초</button><b class="timer" id="timeLabel">05:00</b><button id="plusTime">+10초</button></div></div><hr><p class="muted">단어 하나당 영어→한국어, 한국어→영어 문제가 각각 한 번씩 출제돼. 순서는 무작위야.</p><button class="primary" id="startQuiz" style="width:100%">퀴즈 시작</button></div>
+<div class="card" id="quizPlay" hidden><div class="row between"><span class="pill" id="progress">1 / 1</span><span class="timer" id="countdown">05:00</span></div><div class="quizword" id="question">apple</div><div class="muted" style="text-align:center" id="direction">한국어 뜻을 입력해 줘</div><div class="field"><input id="answerInput" autocomplete="off" placeholder="정답 입력 후 확인"></div><div class="row"><button class="primary" id="checkAnswer" style="flex:1">정답 확인</button><button id="skipQuestion">건너뛰기</button></div><div class="row between" style="margin-top:12px"><span class="muted" id="score">정답 0 · 오답 0</span><button class="ghost" id="pauseQuiz">일시정지</button></div><p class="muted" id="feedback" aria-live="polite"></p></div>
+<div class="card" id="quizResult" hidden><h2>퀴즈 결과</h2><div class="stat"><div><b id="correctTotal">0</b><span class="muted">정답</span></div><div><b id="wrongTotal">0</b><span class="muted">오답</span></div></div><h3 style="margin-top:16px">오답 복습</h3><div id="wrongList" class="list"></div><button class="primary" id="againQuiz" style="width:100%;margin-top:14px">다시 퀴즈 풀기</button></div>
+</section>
+<section class="panel" id="settings">
+<div class="card"><h2>데이터 백업</h2><p class="muted">단어장 기록은 이 휴대폰 브라우저에 저장돼. 브라우저 데이터 삭제나 기기 변경에 대비해 백업 파일을 보관해 줘.</p><div class="row wraprow"><button class="primary" id="exportData">백업 파일 내보내기</button><button class="ghost" id="importButton">백업 불러오기</button><input id="importFile" type="file" accept="application/json" hidden></div></div>
+<div class="card"><h2>저장 정보</h2><p class="muted">인터넷 연결 없이도 사용할 수 있도록 설계했어. 처음 웹앱을 열 때는 인터넷 연결이 필요할 수 있어. 브라우저 사이트 데이터가 삭제되면 저장한 단어장도 사라질 수 있어.</p><button class="danger" id="deleteAll">모든 단어장 삭제</button></div>
+</section>
+</main>
+<footer>Word Garden · 단어장은 이 기기의 브라우저에 저장됩니다.</footer>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const KEY='wordGarden.v1';
+let state=load(), duration=300, questions=[], qi=0, correct=0, wrong=[], seconds=300, interval=null, paused=false;
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||{decks:[]}}catch(e){return{decks:[]}}}
+function persist(){localStorage.setItem(KEY,JSON.stringify(state));render()}
+function id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function toast(s){let t=document.getElementById('toast');t.textContent=s;t.style.display='block';setTimeout(()=>t.style.display='none',2300)}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function parseWords(raw){let out=[];for(let line of raw.split(/\r?\n/)){line=line.trim();if(!line)continue;let parts=line.split(/\s*(?:-|=|–|—|\t)\s*/);if(parts.length<2){continue}let en=parts.shift().trim(),ko=parts.join(' - ').trim();if(en&&ko)out.push({en,ko})}return out}
+function render(){let decks=state.decks;document.getElementById('deckCount').textContent=decks.length+'개 단어장';let html=decks.length?decks.slice().reverse().map(d=>`<div class="item"><div><b>${esc(d.name)}</b><small>${d.words.length}개 단어 · ${new Date(d.created).toLocaleDateString('ko-KR')}</small></div><div class="row"><button data-action="open" data-id="${d.id}">열기</button><button class="danger" data-action="del" data-id="${d.id}">삭제</button></div></div>`).join(''):'<div class="empty">아직 단어장이 없어. 위에서 첫 단어장을 만들어 봐!</div>';document.getElementById('deckList').innerHTML=html;
+document.getElementById('recordList').innerHTML=html;
+document.getElementById('mergeList').innerHTML=decks.length?decks.map(d=>`<label class="item"><span><b>${esc(d.name)}</b><small>${d.words.length}개 단어</small></span><input type="checkbox" value="${d.id}" style="width:20px;height:20px"></label>`).join(''):'<div class="empty">합칠 단어장이 없어.</div>';
+document.getElementById('quizDeck').innerHTML=decks.map(d=>`<option value="${d.id}">${esc(d.name)} (${d.words.length}개)</option>`).join('');document.getElementById('startQuiz').disabled=!decks.length;
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('active',x.id===b.dataset.tab));if(b.dataset.tab==='quiz')resetQuizUI()});
+document.getElementById('saveDeck').onclick=()=>{let name=document.getElementById('deckName').value.trim()||'내 단어장 '+(state.decks.length+1),words=parseWords(document.getElementById('wordInput').value);if(!words.length){toast('단어와 뜻을 한 줄씩 입력해 줘.');return}let d={id:id(),name,words,created:Date.now()};state.decks.push(d);persist();document.getElementById('deckName').value='';document.getElementById('wordInput').value='';toast(words.length+'개 단어를 새 기록으로 저장했어.')};
+document.getElementById('clearInput').onclick=()=>{document.getElementById('deckName').value='';document.getElementById('wordInput').value=''};
+document.addEventListener('click',e=>{let b=e.target.closest('button[data-action]');if(!b)return;let d=state.decks.find(x=>x.id===b.dataset.id);if(!d)return;if(b.dataset.action==='del'){if(confirm(`'${d.name}' 단어장을 삭제할까?`)){state.decks=state.decks.filter(x=>x.id!==d.id);persist();toast('단어장을 삭제했어.')}}else{document.getElementById('deckName').value=d.name+' (수정본)';document.getElementById('wordInput').value=d.words.map(w=>w.en+' - '+w.ko).join('\n');document.querySelector('[data-tab="words"]').click();toast('수정할 내용을 바꾼 뒤 새 단어장으로 저장해 줘.')}});
+document.getElementById('mergeBtn').onclick=()=>{let ids=[...document.querySelectorAll('#mergeList input:checked')].map(x=>x.value);if(ids.length<2){toast('두 개 이상의 단어장을 선택해 줘.');return}let selected=state.decks.filter(d=>ids.includes(d.id)),map=new Map();selected.forEach(d=>d.words.forEach(w=>{let k=w.en.trim().toLowerCase();if(!map.has(k))map.set(k,w)}));let words=[...map.values()];state.decks.push({id:id(),name:document.getElementById('mergeName').value.trim()||'합친 단어장',words,created:Date.now()});persist();document.getElementById('mergeName').value='';document.querySelectorAll('#mergeList input').forEach(x=>x.checked=false);toast('단어장을 합쳤어. 원본 기록은 보존돼.')};
+function fmt(n){return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0')}
+function resetQuizUI(){clearInterval(interval);interval=null;document.getElementById('quizSetup').hidden=false;document.getElementById('quizPlay').hidden=true;document.getElementById('quizResult').hidden=true;document.getElementById('timeLabel').textContent=fmt(duration)}
+document.getElementById('minusTime').onclick=()=>{duration=Math.max(10,duration-10);document.getElementById('timeLabel').textContent=fmt(duration)};
+document.getElementById('plusTime').onclick=()=>{duration=Math.min(3600,duration+10);document.getElementById('timeLabel').textContent=fmt(duration)};
+function start(){let d=state.decks.find(x=>x.id===document.getElementById('quizDeck').value);if(!d)return;questions=d.words.flatMap(w=>[{q:w.ko,a:w.en,dir:'한국어 뜻을 보고 영어 단어 입력',en:w.en,ko:w.ko},{q:w.en,a:w.ko,dir:'영어 단어를 보고 한국어 뜻 입력',en:w.en,ko:w.ko}]);for(let i=questions.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[questions[i],questions[j]]=[questions[j],questions[i]]}qi=0;correct=0;wrong=[];seconds=duration;paused=false;document.getElementById('quizSetup').hidden=true;document.getElementById('quizResult').hidden=true;document.getElementById('quizPlay').hidden=false;showQuestion();interval=setInterval(()=>{if(!paused){seconds--;document.getElementById('countdown').textContent=fmt(seconds);if(seconds<=0)finish()}},1000)}
+function showQuestion(){if(qi>=questions.length){finish();return}let q=questions[qi];document.getElementById('progress').textContent=(qi+1)+' / '+questions.length;document.getElementById('question').textContent=q.q;document.getElementById('direction').textContent=q.dir;document.getElementById('answerInput').value='';document.getElementById('answerInput').disabled=false;document.getElementById('checkAnswer').disabled=false;document.getElementById('feedback').textContent='';document.getElementById('countdown').textContent=fmt(seconds);document.getElementById('score').textContent=`정답 ${correct} · 오답 ${wrong.length}`;document.getElementById('answerInput').focus()}
+function check(){if(!questions[qi])return;let q=questions[qi],a=document.getElementById('answerInput').value.trim().toLowerCase(),ok=a===q.a.trim().toLowerCase();if(ok)correct++;else wrong.push(q);document.getElementById('feedback').textContent=ok?'정답이야!':'정답: '+q.a;document.getElementById('answerInput').disabled=true;document.getElementById('checkAnswer').disabled=true;document.getElementById('score').textContent=`정답 ${correct} · 오답 ${wrong.length}`;setTimeout(()=>{qi++;showQuestion()},850)}
+document.getElementById('checkAnswer').onclick=check;document.getElementById('answerInput').addEventListener('keydown',e=>{if(e.key==='Enter')check()});document.getElementById('skipQuestion').onclick=()=>{if(questions[qi])wrong.push(questions[qi]);qi++;showQuestion()};
+document.getElementById('pauseQuiz').onclick=()=>{paused=!paused;document.getElementById('pauseQuiz').textContent=paused?'계속하기':'일시정지';document.getElementById('answerInput').disabled=paused;document.getElementById('checkAnswer').disabled=paused};
+function finish(){clearInterval(interval);interval=null;document.getElementById('quizPlay').hidden=true;document.getElementById('quizResult').hidden=false;document.getElementById('correctTotal').textContent=correct;document.getElementById('wrongTotal').textContent=wrong.length;document.getElementById('wrongList').innerHTML=wrong.length?wrong.map(w=>`<div class="item"><div><b>${esc(w.q)}</b><small>${esc(w.a)}</small></div></div>`).join(''):'<div class="empty">오답이 없어! 훌륭해.</div>'}
+document.getElementById('startQuiz').onclick=start;document.getElementById('againQuiz').onclick=()=>resetQuizUI();
+document.getElementById('exportData').onclick=()=>{let blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='word-garden-backup.json';a.click();URL.revokeObjectURL(a.href)};
+document.getElementById('importButton').onclick=()=>document.getElementById('importFile').click();
+document.getElementById('importFile').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let v=JSON.parse(await f.text());if(!Array.isArray(v.decks))throw Error();if(confirm('현재 단어장을 백업 파일 내용으로 교체할까?')){state=v;persist();toast('백업을 불러왔어.')}}catch(err){toast('올바른 백업 파일이 아니야.')}e.target.value=''};
+document.getElementById('deleteAll').onclick=()=>{if(confirm('모든 단어장을 삭제할까? 이 작업은 되돌릴 수 없어.')){state={decks:[]};persist();toast('모든 단어장을 삭제했어.')}};
+render();document.getElementById('timeLabel').textContent=fmt(duration);
+if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').then(()=>document.getElementById('offlineBadge').textContent='오프라인 지원').catch(()=>document.getElementById('offlineBadge').textContent='웹앱');
+else document.getElementById('offlineBadge').textContent='로컬 저장';
+</script>
+</body></html>
